@@ -43,7 +43,7 @@ int l = 1;
 
 uint8_t randalf = 0; //global Seedvalue
 
-uint8_t lcd_status = LCD_WELCOME;
+uint8_t lcd_status = LCD_GAME_OVER;
 
 
 void setup() {
@@ -181,7 +181,8 @@ void lcd_player_select() {
   lcd.print("Player Select");
 }
 
-void lcd_player_turn() {
+void lcd_player_turn() 
+{
   lcd.createChar(0, skull);  
   lcd.createChar(1, heart); 
   
@@ -193,8 +194,62 @@ void lcd_player_turn() {
   lcd.write(1);
   lcd.write(1);
   lcd.write(1);
+  lcd.setCursor(0, 1);
+  lcd.print("Player:  Turn:"); 
+}
 
+void lcd_game_over()
+{
   
+
+ lcd.createChar(0, skull);
+ i=0;
+ j=0;
+ k=0;    
+ while (k <= 64) {
+    while (i <= LCD_DISPLAY_SIZE + LCD_ANIMATION_OFFSET)
+    {
+    lcd.setCursor(i, 0);
+    lcd.write(0);        
+    i++;
+  
+    if (i >= LCD_ANIMATION_OFFSET)
+        {
+        lcd.setCursor(j, 0);
+        lcd.print(" ");               
+        j++;
+        }     
+    delay(2);
+    } 
+   
+    while (i > -LCD_ANIMATION_OFFSET +1)
+    {
+    lcd.setCursor(i, 1);
+    lcd.write(0);        
+    i--;
+  
+    if (i <= LCD_DISPLAY_SIZE - LCD_ANIMATION_OFFSET +1)
+        {
+        lcd.setCursor(j, 1);
+        lcd.print(" ");               
+        j--;
+        }     
+    delay(2);
+    }
+   k++;
+ }
+ lcd.setCursor(0, 0);
+ lcd.clear();
+ lcd.print("    G A M E "); 
+ lcd.setCursor(0, 1);
+ lcd.print("    O V E R ");
+ delay(LCD_SLOW_ANIMATION); 
+}
+
+
+void lcd_winning()
+{
+  lcd.print(" "); 
 }
 
 void lcd_refresh() {
@@ -214,6 +269,12 @@ void lcd_refresh() {
     case LCD_PLAYER_TURN:
       lcd_player_turn();
       break;
+    case LCD_GAME_OVER:
+      lcd_game_over();
+      break;
+    case LCD_WINNING:
+      lcd_winning();
+      break;  
     default:
       break;
   }
