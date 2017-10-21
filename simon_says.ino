@@ -1,3 +1,8 @@
+#include <boarddefs.h>
+#include <IRremote.h>
+#include <IRremoteInt.h>
+#include <ir_Lego_PF_BitStreamEncoder.h>
+
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
@@ -7,6 +12,8 @@
 #define printByte(args)  print(args,BYTE);
 #endif
 
+
+
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 const uint8_t LCD_DISPLAY_SIZE = 16;
@@ -15,7 +22,8 @@ const uint8_t LCD_FAST_ANIMATION = 50; //time in miliseconds
 const uint8_t LCD_SLOW_ANIMATION = 200;
 
 
-const uint8_t BUTTON_PIN = 3;
+
+const uint8_t BUTTON_PIN = 5;
 
 const uint8_t LCD_WELCOME = 0x00;
 const uint8_t LCD_NEW_GAME = 0x01;
@@ -23,6 +31,8 @@ const uint8_t LCD_PLAYER_SELECT = 0x02;
 const uint8_t LCD_PLAYER_TURN = 0x03;
 const uint8_t LCD_GAME_OVER = 0x04;
 const uint8_t LCD_WINNING = 0x05;
+const uint8_t IR_TEST = 0x06;
+const uint8_t LED_TEST = 0x07;
 
 //custom characters
 uint8_t block[8] = {0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F};
@@ -45,18 +55,122 @@ int l = 1;
 
 uint8_t randalf = 0; //global Seedvalue
 
-uint8_t lcd_status = LCD_WINNING;
+uint8_t lcd_status = LCD_GAME_OVER;
 
+//IrRemote Part
+const uint8_t RECV_PIN = 11;
+IRrecv irrecv(RECV_PIN);
+decode_results results;
 
-void setup() {
-  lcd.begin();  
-  lcd.backlight();
-  Serial.begin(9600);
+//Led test Part
+const uint8_t LED_PIN = 3;
 
+void setup() {  
   pinMode(BUTTON_PIN, INPUT);   //is not necessary
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  lcd.begin();  
+  lcd.backlight();
+  Serial.begin(9600); //for timer, IR and other stuff
+
+  irrecv.enableIRIn(); // Start the receiver
+
+
 }
 
+
+void ledtest()                     // run over and over again
+{
+  digitalWrite(LED_PIN, HIGH);   // sets the LED on
+  delay(500);                  // waits for a second
+  digitalWrite(LED_PIN, LOW);    // sets the LED off
+  delay(500);                  // waits for a second
+}
+
+
+
+void irtest()
+{
+  if (irrecv.decode(&results))
+    {
+    Serial.println(results.value, HEX); //send HexCode of pressed Button to SerialPort 
+    buttontest();
+    irrecv.resume(); // Receive the next value
+    }
+}
+
+void buttontest()
+{
+  switch(results.value)
+  {
+    case 0xFFA25D: lcd.print("CH-");  //CH-
+                   delay(LCD_SLOW_ANIMATION*3);
+                   break;
+    case 0xFF629D: lcd.print("CH"); //CH
+                   delay(LCD_SLOW_ANIMATION*3);
+                   break; 
+    case 0xFFE21D: lcd.print("CH+");  //CH+
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;   
+    case 0xFF22DD: lcd.print("PREV"); //PREV
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;  
+    case 0xFF02FD: lcd.print("NEXT");  //NEXT 
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break; 
+    case 0xFFC23D: lcd.print("PLAY"); //PLAY
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;  
+    case 0xFFE01F: lcd.print("VOL-"); //VOL-
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;  
+    case 0xFFA857: lcd.print("VOL+"); //VOL+
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;  
+    case 0xFF906F: lcd.print("EQ"); //EQ
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;  
+    case 0xFF6897: lcd.print("NULL"); //NULL
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;  
+    case 0xFF9867: lcd.print("100+"); //100+
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;  
+    case 0xFFB04F: lcd.print("200+"); //200+
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;  
+    case 0xFF30CF: lcd.print("1");  //1 
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break; 
+    case 0xFF18E7: lcd.print("2"); //2 
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;  
+    case 0xFF7A85: lcd.print("3"); //3
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break; 
+    case 0xFF10EF:  lcd.print("4");  //4
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;
+    case 0xFF38C7:  lcd.print("5");  //5
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break; 
+    case 0xFF5AA5:  lcd.print("6"); //6 
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break; 
+    case 0xFF42BD:  lcd.print("7"); //7
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break; 
+    case 0xFF4AB5: lcd.print("8"); //8 
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;  
+    case 0xFF52AD:  lcd.print("9"); //9
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break; 
+    case 0xFFFFFF:  lcd.print("zippp"); //BUTTON HOLD doesnt work due too delay
+                      delay(LCD_SLOW_ANIMATION*3);
+                      break;    
+    default: break; 
+  }
+}
 
 void lcd_welcome() {
    
@@ -198,6 +312,7 @@ void lcd_player_turn()
   lcd.write(1);
   lcd.setCursor(0, 1);
   lcd.print("Player:  Turn:"); 
+  delay(LCD_SLOW_ANIMATION*10);
 }
 
 void lcd_game_over()  
@@ -206,7 +321,7 @@ void lcd_game_over()
  i=0;
  j=0;
  k=0;    
- while (k <= 64) {     //disable the loop and set delay to LCD_FAST_ANIMATION to have normal effect
+ //while (k <= 64) {     //disable the loop and set delay to LCD_FAST_ANIMATION to have normal effect
     while (i <= LCD_DISPLAY_SIZE + LCD_ANIMATION_OFFSET)
     {
     lcd.setCursor(i, 0);
@@ -219,7 +334,7 @@ void lcd_game_over()
         lcd.print(" ");               
         j++;
         }     
-    delay(2);
+    delay(LCD_FAST_ANIMATION*2);
     } 
    
     while (i > -LCD_ANIMATION_OFFSET +1)
@@ -234,10 +349,10 @@ void lcd_game_over()
         lcd.print(" ");               
         j--;
         }     
-    delay(2);
+    delay(LCD_FAST_ANIMATION*2);
     }
-   k++;
- }
+  // k++;
+ //}
  lcd.setCursor(0, 0);
  lcd.clear();
  lcd.print("    G A M E "); 
@@ -289,6 +404,12 @@ void lcd_refresh() {
       break;
     case LCD_WINNING:
       lcd_winning();
+      break; 
+    case IR_TEST:
+      irtest();
+      break;
+    case LED_TEST:
+      ledtest();
       break;  
     default:
       break;
