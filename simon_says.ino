@@ -21,10 +21,6 @@ const uint8_t LCD_ANIMATION_OFFSET = 6;
 const uint8_t LCD_FAST_ANIMATION = 50; //time in miliseconds
 const uint8_t LCD_SLOW_ANIMATION = 200;
 
-
-
-const uint8_t BUTTON_PIN = 5;
-
 const uint8_t LCD_WELCOME = 0x00;
 const uint8_t LCD_NEW_GAME = 0x01;
 const uint8_t LCD_PLAYER_SELECT = 0x02;
@@ -46,6 +42,7 @@ uint8_t Y[8] = {0x11, 0x11, 0x19, 0x07, 0x06, 0x04, 0x04, 0x1C};
 uint8_t heart[8] = {0x0, 0xa, 0x1f, 0x1f, 0xe, 0x4, 0x0};
 uint8_t skull[8] = {0x0E, 0x1F, 0x15, 0x1F, 0x1B, 0x0E, 0x0E, 0x00};
 uint8_t crown[8] = {0x04, 0x0E, 0x04, 0x15, 0x1F, 0x1F, 0x1F, 0x00};
+uint8_t star[8] = {0x04, 0x15, 0x0E, 0x0E, 0x1F, 0x0E, 0x0E, 0x15};
 
 //loop variables
 int i = 0;
@@ -55,7 +52,7 @@ int l = 1;
 
 uint8_t randalf = 0; //global Seedvalue
 
-uint8_t lcd_status = LCD_GAME_OVER;
+uint8_t lcd_status = LCD_PLAYER_TURN;
 
 //IrRemote Part
 const uint8_t RECV_PIN = 11;
@@ -64,6 +61,10 @@ decode_results results;
 
 //Led test Part
 const uint8_t LED_PIN = 3;
+
+//Single Button Part
+
+const uint8_t BUTTON_PIN = 5;
 
 void setup() {  
   pinMode(BUTTON_PIN, INPUT);   //is not necessary
@@ -320,8 +321,6 @@ void lcd_game_over()
  lcd.createChar(0, skull);
  i=0;
  j=0;
- k=0;    
- //while (k <= 64) {     //disable the loop and set delay to LCD_FAST_ANIMATION to have normal effect
     while (i <= LCD_DISPLAY_SIZE + LCD_ANIMATION_OFFSET)
     {
     lcd.setCursor(i, 0);
@@ -351,8 +350,6 @@ void lcd_game_over()
         }     
     delay(LCD_FAST_ANIMATION*2);
     }
-  // k++;
- //}
  lcd.setCursor(0, 0);
  lcd.clear();
  lcd.print("    G A M E "); 
@@ -364,22 +361,31 @@ void lcd_game_over()
 
 void lcd_winning()
 {
-  lcd.createChar(1, crown);
+i = 0;   
+lcd.createChar(0, crown);
+lcd.createChar(1, heart);
+lcd.createChar(2, star);
+ 
+  while (1)
+  {
   lcd.setCursor(0, 0);
-  lcd.write(1);
-  lcd.write(1);
+  lcd.write(i);
+  lcd.write(i);
   lcd.print("   YOU WIN  ");
-  lcd.write(1);
-  lcd.write(1); 
+  lcd.write(i);
+  lcd.write(i); 
   lcd.setCursor(0, 1);
-  lcd.write(1);
-  lcd.write(1);
-  lcd.write(1);
+  lcd.write(i);
+  lcd.write(i);
+  lcd.write(i);
   lcd.print("  BEST!!! "); 
-  lcd.write(1);
-  lcd.write(1);
-  lcd.write(1);
-  delay(LCD_SLOW_ANIMATION*10); 
+  lcd.write(i);
+  lcd.write(i);
+  lcd.write(i);
+  delay(LCD_SLOW_ANIMATION*5); 
+  if (i==2) i=i-3;
+  i++;
+  }
 }
 
 void lcd_refresh() {
@@ -420,8 +426,8 @@ void loop() {
   lcd_refresh();
  // delay(500);
 
-  if(lcd_status == LCD_WELCOME) {
-     lcd_status = LCD_NEW_GAME;   
+  if(lcd_status == LCD_PLAYER_TURN) {
+     lcd_status = LCD_WINNING;   
   }
 
 
