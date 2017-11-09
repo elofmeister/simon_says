@@ -419,8 +419,8 @@ void game()
     while(number_count<3)  
     {
      randomer(); 
-     number_count++;
      simon_said[number_count]=randalf;
+     number_count++;
     }
    }
    
@@ -459,7 +459,7 @@ void player_input()
               input_count++;
               player_life_turns[turn_player][2]++;    //correct entries counted for highscore     
 
-              if (player_number - player_alive == 1) lcd_winning();
+              if (player_number > 1 && player_alive == 1) lcd_winning();
            }
            else 
            {
