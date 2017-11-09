@@ -79,7 +79,7 @@ long simon_said[50];
 uint8_t player_number;
 uint8_t player_alive;
 int turn_player = 0;  // turn player
-int global_turns = 1;  //global turns
+int global_turns = 0;  //global turns
 int number_count = 0; //counting said numbers 
 uint8_t input = 0;
 
