@@ -24,7 +24,7 @@ const uint8_t LCD_SLOW_ANIMATION = 200;
 const int     LCD_NO_ANIMATION = 1000;
 
 //pin layout
-const uint8_t IR_PIN = 11;
+const uint8_t IR_PIN = 2;
 const uint8_t LED_PIN = A3;
 const uint8_t BUTTON_PIN = 5;
 const uint8_t R_PIN = A0;
@@ -347,12 +347,11 @@ void lcd_player_turn()
  lcd.clear();
  
     timer1_cnt=0; //reseting timer
-    wdt_disable(); //turning of watchdog 
+
   
   while (1)
   {
-    // alternatively = sizeof(player_life_turns) / sizeof(player_life_turns[0][0])/3;
-    
+    wdt_disable(); //turning of watchdog 
    
     lcd.setCursor(0, 0);
     switch (player_life_turns[turn_player][1])
@@ -426,7 +425,7 @@ void game()
    }
    
   lcd.clear();  
-  for(int x=0; x<=number_count; x++)
+  for(int x=0; x<number_count; x++)
   {
     lcd.setCursor(4,0);
     lcd.print(simon_said[x]);
@@ -460,7 +459,7 @@ void player_input()
               input_count++;
               player_life_turns[turn_player][2]++;    //correct entries counted for highscore     
 
-             if (player_number - player_alive == 1) lcd_winning();
+              if (player_number - player_alive == 1) lcd_winning();
            }
            else 
            {
@@ -549,7 +548,7 @@ void lcd_winning()
  
  wdt_enable(WDTO_8S);
  
-  while (k<10)
+  while (k<20)
   {
     lcd.setCursor(0, 0);
     lcd.write(i);
@@ -561,8 +560,9 @@ void lcd_winning()
     lcd.write(i);
     lcd.write(i);
     lcd.write(i);
-    lcd.print("SCORE:");
+    lcd.print("SCORE:");    
     lcd.print(player_life_turns[turn_player][2]); 
+    lcd.setCursor(13, 1);
     lcd.write(i);
     lcd.write(i);
     lcd.write(i);
@@ -663,7 +663,7 @@ void lcd_refresh()
   
 void loop() {
   
-  wdt_reset();  //resetting watchdog  
+ wdt_reset();  //resetting watchdog  
  lcd_refresh();
 
 
