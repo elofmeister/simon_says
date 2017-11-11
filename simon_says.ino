@@ -1,9 +1,10 @@
+#include <avr/wdt.h>
+#include <Wire.h>
 #include <boarddefs.h>
+#include <EEPROM.h>
 #include <IRremote.h>
 #include <IRremoteInt.h>
 #include <ir_Lego_PF_BitStreamEncoder.h>
-#include <avr/wdt.h>
-#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -71,8 +72,8 @@ uint8_t lcd_status = LCD_WELCOME;
 const uint8_t STARTING_LIFES = 3;
 const uint8_t MAX_PLAYERS = 9;  
 const unsigned int GAMESPEED = 3000;  //not used yet
-long player_life_turns[MAX_PLAYERS][STARTING_LIFES];   //  life = [x][1]  turn = [x][2]
-long simon_said[50];                                   //keeps track of the specific number-sequence  
+unsigned int player_life_turns[MAX_PLAYERS][STARTING_LIFES];   //  life = [x][1]  turn = [x][2]
+unsigned int simon_said[50];                                   //keeps track of the specific number-sequence  
 uint8_t player_number;  
 uint8_t player_alive;
 int turn_player = 0;   // turn player
@@ -90,6 +91,11 @@ uint8_t timer1_toggle = 0;
 long timer1_cnt = 0;
 long timer1_old_cnt=0; 
 
+//EEPROM variables 
+unsigned int address = 0; //adress 0 = version, 1 = flagscore, 2 = higscore, 3 = playermode, 4 = maxrounds
+byte rom_version = B00000; //Version 0
+byte value;
+
 void setup() {  
   pinMode(BUTTON_PIN, INPUT);   //is not necessary
   pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -102,6 +108,8 @@ void setup() {
   pinMode(G_PIN, OUTPUT);
   pinMode(B_PIN, OUTPUT);
   timer_setup();
+  get_version();
+  //rom_reset();
 
   wdt_disable(); //disable the watchdog
   wdt_enable(WDTO_8S); //enable watchdog = 20s
@@ -143,6 +151,39 @@ ISR(TIMER1_COMPA_vect)  //interupt sercvice routine for timer 1
   }
 }
 
+void get_version()
+{
+    value = EEPROM.read(address);
+    if (rom_version != value)
+    {
+    lcd.print("EEPROM Version");
+    lcd.setCursor(0,1);
+    lcd.print("Corrupted!");
+    delay(LCD_SLOW_ANIMATION*10);
+    lcd.clear();
+    lcd.print("Please Update");
+    lcd.setCursor(0,1);
+    lcd.print("to Version:");
+    lcd.print(value, DEC);
+    delay(LCD_SLOW_ANIMATION*10);
+    soft_reset();
+    }
+/***  Can be used for automted changing second screen after softreboot.
+      But its not good for the ROM-lifecycle...  
+         
+     else  
+    {
+      address++;
+      value = EEPROM.read(address);   //changing between newgame/highscore screen 
+      if (value = 0) 
+      {
+          EEPROM.write(address, 1);   
+      }
+      else EEPROM.write(address, 0);  
+    }
+    
+***/ 
+}
 
 void rgb_color( int red, int green, int blue) //sets the RGB-colors
 {
@@ -162,6 +203,74 @@ void ir_input()
 void randomer() //linear conguential generator , generating pseudorandom numbers within the limits [0;9]
 {   
   randalf = abs((MULTIPLIER * randalf + INCREMENT )% MAX_VALUE);   
+}
+
+void get_highscore()
+{ 
+ 
+  lcd.clear();
+  address++;
+  value = EEPROM.read(address);
+  lcd.print("Highscore");
+  lcd.setCursor(0,1);
+  lcd.print("BEST:");
+  lcd.print(value, DEC);
+  delay(LCD_SLOW_ANIMATION*10);
+  
+  address++;
+  value = EEPROM.read(address);
+  Serial.print(address);  
+  lcd.clear();  
+  lcd.print("Max Round");
+    lcd.setCursor(0,1);
+  lcd.print(value, DEC);
+  lcd.print("-Player:");
+  address++;
+  value = EEPROM.read(address);
+  lcd.print(value, DEC);
+  delay(LCD_SLOW_ANIMATION*10); 
+   
+    if (address == 5)  
+     {
+      address = 1;  
+     }  
+ soft_reset();  
+}
+
+void set_highscore()
+{ 
+ address = 2;
+ value = EEPROM.read(address);
+ if (player_life_turns[turn_player][2] >= value)
+   {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("NEW HIGHSCORE!");
+    lcd.setCursor(0, 1);
+    lcd.write(player_life_turns[turn_player][2]);
+    lcd.print(" (old:");
+    lcd.write(value);
+    lcd.print(")");
+    delay(LCD_SLOW_ANIMATION*10);       
+    EEPROM.write(address, value); 
+   }
+ address = 4;  
+ value = EEPROM.read(address);
+ if (global_turns >= value)
+   {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("LONGESTGAME!");
+    lcd.setCursor(0, 1);
+    lcd.write(global_turns);
+    lcd.print(" Rounds");
+    delay(LCD_SLOW_ANIMATION*10);       
+    EEPROM.write(address, value); 
+    address--;                      //get the playermode
+    value = EEPROM.read(address);
+    EEPROM.write(address, value); 
+   }
+    
 }
 
 void lcd_welcome() 
@@ -278,11 +387,17 @@ void lcd_new_game()
     lcd.print("Press A Button");  
       if (irrecv.decode(&results))
        { 
-         lcd_status = LCD_PLAYER_SELECT;
+         if(irrecv.decode(&results) == 11)
+         {
+          lcd_status = LCD_PLAYER_SELECT;
+         }
+         else  lcd_status = IR_TEST;
          randalf = micros();    //initializing randalf with seed value (~ 110.000.000)
          irrecv.resume();       // ready to receive the next value from IR-Control
-       }
-     }     // Watchdog triggers here after ~3 sec inactivity --> lcd_welcome screen
+       }       
+     // Watchdog triggers here after ~3 sec inactivity --> lcd_welcome screen
+     }
+     
 }
 
  
@@ -524,8 +639,17 @@ void lcd_game_over()
 
  player_alive--;                        //one player died 
  wdt_enable(WDTO_8S);                   //reactivate watchdog to reset game
- if (player_number == 1) soft_reset();
- if (player_number - player_alive == 0) soft_reset();
+
+ if (player_number == 1) 
+  {
+    set_highscore();
+    soft_reset();
+  }
+ if (player_number - player_alive == 0) 
+  {
+   set_highscore();
+   soft_reset();
+  }
 }
 
 
@@ -564,7 +688,11 @@ void lcd_winning()
     k++;  
   }
   wdt_enable(WDTO_8S);              //reactivate watchdog to reset game 
- if (player_number - player_alive == 1) soft_reset; 
+ if (player_number - player_alive == 1) 
+ {
+  set_highscore();
+  soft_reset; 
+ }
 }
 
 
@@ -573,13 +701,12 @@ void soft_reset()
  delay(8001); //if delay is greater then 8seconds , immidiate watchdog reset
 }
 
-
 void set_input() //returns the pressed input
 {
   switch(results.value)
-  {
-    
-    case 0xFFC23D: input=11; // PLAY or PAUSE
+  {    
+    case 0xFFC23D: input=11; // PLAY or PAUSE 
+                   get_highscore;
                    break;    
     case 0xFF6897: input=0; 
                    break;   
@@ -633,7 +760,7 @@ void lcd_refresh()
       lcd_winning();
       break; 
     case IR_TEST:
-      irtest();
+      get_highscore();
       break;
     case LED_TEST:
      ledtest();
@@ -658,16 +785,23 @@ void loop()
   if(lcd_status == LCD_WELCOME) 
   {
      lcd_status = LCD_NEW_GAME;   
-  }
-/*
-  if(digitalRead(BUTTON_PIN) == LOW && lcd_status == LCD_NEW_GAME) { // Button pressed
-    lcd_status = LCD_PLAYER_SELECT;
-  }
-*/  
+  }   
+
 }
 
 
 // -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- 
+
+void rom_reset()
+{
+  for (int i = 0 ; i < EEPROM.length() ; i++)  // EEPROM.length() determine the eeprom size dynamically, to increase compatabilty
+  {
+  EEPROM.write(i, 0);
+  }
+  lcd.print("ROM RESET DONE");
+  delay(1900);
+}
+
 void ledtest()                     // Lets the single LED-Blink
 {
   digitalWrite(LED_PIN, HIGH);   // sets the LED on
@@ -675,7 +809,6 @@ void ledtest()                     // Lets the single LED-Blink
   digitalWrite(LED_PIN, LOW);    // sets the LED off
   delay(500);                  // waits for a second
 }
-
 
 
 void irtest()  //function is for IR_Control testing
