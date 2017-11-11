@@ -3,9 +3,9 @@
 #include <IRremoteInt.h>
 #include <ir_Lego_PF_BitStreamEncoder.h>
 #include <avr/wdt.h>
-
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 #if defined(ARDUINO) && ARDUINO >= 100
 #define printByte(args)  write(args);
@@ -13,9 +13,6 @@
 #define printByte(args)  print(args,BYTE);
 #endif
 
-
-
-LiquidCrystal_I2C lcd(0x27, 16, 2);
 //display variables
 const uint8_t LCD_DISPLAY_SIZE = 16;
 const uint8_t LCD_ANIMATION_OFFSET = 6;
@@ -63,33 +60,32 @@ int l = 1;
 
 //random number generator variables 
 long randalf = 0; //global random number and seedvalue
-const long MULTIPLIER = 1103515245; //
-const int INCREMENT = 12345; //stepwidth
-const uint8_t MAX_VALUE = 10;  //maximal random value
+const long MULTIPLIER = 1103515245;  //c standard value
+const int INCREMENT = 12345;         //stepwidth
+const uint8_t MAX_VALUE = 10;        //maximal random value
 
 //global display variable
 uint8_t lcd_status = LCD_WELCOME;
 
-// uint8_t player_lifes[][]; //keeps track of the number of turns and the specific number in sequence
+//global game and player vatiables
 const uint8_t STARTING_LIFES = 3;
 const uint8_t MAX_PLAYERS = 9;  
-const unsigned int GAMESPEED = 3000;  //speed of the numbers shown
-long player_life_turns[MAX_PLAYERS][STARTING_LIFES];   
-long simon_said[50];
-uint8_t player_number;
+const unsigned int GAMESPEED = 3000;  //not used yet
+long player_life_turns[MAX_PLAYERS][STARTING_LIFES];   //  life = [x][1]  turn = [x][2]
+long simon_said[50];                                   //keeps track of the specific number-sequence  
+uint8_t player_number;  
 uint8_t player_alive;
-int turn_player = 0;  // turn player
+int turn_player = 0;   // turn player
 int global_turns = 0;  //global turns
-int number_count = 0; //counting said numbers 
+int number_count = 0;  //counting said numbers 
 uint8_t input = 0;
 
-//IrRemote Part
+//IrRemote 
 IRrecv irrecv(IR_PIN);
 decode_results results;
-
 int refresh=0;
 
-//Timer Part
+//global timer variables
 uint8_t timer1_toggle = 0;
 long timer1_cnt = 0;
 long timer1_old_cnt=0; 
@@ -143,7 +139,7 @@ ISR(TIMER1_COMPA_vect)  //interupt sercvice routine for timer 1
     }
   else if(timer1_toggle == 0){
     digitalWrite(LED_PIN,LOW);
-    timer1_toggle = 1;  //shows that device is on
+    timer1_toggle = 1;  
   }
 }
 
@@ -163,7 +159,7 @@ void ir_input()
     }
 }
 
-void randomer() //linear conguential generator , generating pseudorandom numbers = [0;9]
+void randomer() //linear conguential generator , generating pseudorandom numbers within the limits [0;9]
 {   
   randalf = abs((MULTIPLIER * randalf + INCREMENT )% MAX_VALUE);   
 }
@@ -199,14 +195,14 @@ while (k <= 4)
          j++;
         }
   
-       if (j>3 && j<9 && k>=1)  //print Simon
+       if (j>3 && j<9 && k>=1)  //prints Simon
          {
           lcd.setCursor(j-1, 0);
           lcd.printByte(l);
           l++;  
          }
   
-       if (k >= 2)                //print Says
+       if (k >= 2)              //prints Says
          { 
            switch (j)
            {       
@@ -226,7 +222,7 @@ while (k <= 4)
            }      
          }
        
-      if (j > LCD_ANIMATION_OFFSET && k==3)        //print version
+      if (j > LCD_ANIMATION_OFFSET && k==3)        //prints version
         {
           lcd.setCursor(j-7, 1);
           lcd.print(" V.1.3 ");
@@ -250,7 +246,7 @@ void lcd_new_game()
   j = LCD_DISPLAY_SIZE;
   k = 0;
 
-      while (i >= -LCD_ANIMATION_OFFSET)    //Print moving Blocks
+      while (i >= -LCD_ANIMATION_OFFSET)    //prints moving Blocks
       {
       lcd.setCursor(i, 0);
       lcd.write(0);  
@@ -278,15 +274,15 @@ void lcd_new_game()
   
     while (lcd_status == LCD_NEW_GAME)
     {
-    lcd.setCursor(0, 1);
-    lcd.print(" Press A Button");  
+    lcd.setCursor(1, 1);
+    lcd.print("Press A Button");  
       if (irrecv.decode(&results))
        { 
          lcd_status = LCD_PLAYER_SELECT;
-         randalf = micros();   //initializing randalf with seed value (~ 110.000.000)
-         irrecv.resume(); // ready to receive the next value from IR-Control
+         randalf = micros();    //initializing randalf with seed value (~ 110.000.000)
+         irrecv.resume();       // ready to receive the next value from IR-Control
        }
-     }          // Watchdog triggers here after ~3 sec inactivity
+     }     // Watchdog triggers here after ~3 sec inactivity --> lcd_welcome screen
 }
 
  
@@ -310,8 +306,7 @@ void lcd_player_select()
        
      if (input >= 1 && input <= 9) 
      {
-         //setting up players and lifepoints
-        player_number = input;
+        player_number = input;      //setting up players and lifepoints
         player_alive = player_number;
         for(i=0;i<=input;i++)
         {
@@ -350,15 +345,16 @@ void lcd_player_turn()
 
   
   while (1)
-  {
-    wdt_disable(); //turning of watchdog 
+  { 
+    rgb_color(255, 0, 255); // purple
+    wdt_disable(); //turning of watchdog while game is in progress
    
     lcd.setCursor(0, 0);
     switch (player_life_turns[turn_player][1])
     { 
       case (0): lcd.write(0);
                 lcd.write(0);
-                lcd.write(0);
+                lcd.write(0); 
                 break;
       case (1): lcd.write(0);
                 lcd.write(0);
@@ -377,15 +373,13 @@ void lcd_player_turn()
     lcd.setCursor(0, 1);
     switch (player_life_turns[turn_player][1])
     { 
-      case (0): 
-                lcd.print("Player:");
+      case (0): lcd.print("Player:");
                 lcd.print(turn_player+1);  
                 lcd.print("DEAD:");
                 lcd.print(player_life_turns[turn_player][2]);
                 delay(LCD_SLOW_ANIMATION*5);  // Marker für maddin
                 break;
-      default: 
-               lcd.print("Player:");
+      default: lcd.print("Player:");
                lcd.print(turn_player+1);  
                lcd.print("Turn:");
                lcd.print(global_turns+1);
@@ -393,10 +387,8 @@ void lcd_player_turn()
                game();
                player_input();  
                break;
-    }
-         
-    
-    
+    }      
+        
     turn_player++;
     
     if (turn_player==player_number)
@@ -409,7 +401,7 @@ void lcd_player_turn()
     }   
   }
  lcd.setCursor(0, 0);
-    lcd.print("TIMER DOWN");
+ lcd.print("TIMER DOWN");
 }
 
 void game()
@@ -454,7 +446,7 @@ void player_input()
               lcd.print("right!!!");
               lcd.setCursor(1,1);
               lcd.print("right!!!"); 
-              rgb_color(0, 255, 0); // green 
+              rgb_color(0, 255, 0);                   // green 
               delay(LCD_SLOW_ANIMATION);
               input_count++;
               player_life_turns[turn_player][2]++;    //correct entries counted for highscore     
@@ -482,10 +474,9 @@ void player_input()
 
 void lcd_game_over()  
 {
+ rgb_color(255, 255, 0); // yellow 
  k=0; 
  lcd.createChar(0, skull);
- 
- wdt_enable(WDTO_8S);
 
   while (k<=1)
     { 
@@ -531,22 +522,22 @@ void lcd_game_over()
    wdt_reset();
    }
 
-player_alive--;                        //one player died 
-if (player_number == 1) soft_reset();
-if (player_number - player_alive == 0) soft_reset();
+ player_alive--;                        //one player died 
+ wdt_enable(WDTO_8S);                   //reactivate watchdog to reset game
+ if (player_number == 1) soft_reset();
+ if (player_number - player_alive == 0) soft_reset();
 }
 
 
 void lcd_winning()
 {
+ rgb_color(0, 255, 255); // aqua
  i = 0;
  j = 0;  
  k = 0; 
  lcd.createChar(0, crown);
  lcd.createChar(1, heart);
  lcd.createChar(2, star);
- 
- wdt_enable(WDTO_8S);
  
   while (k<20)
   {
@@ -572,6 +563,7 @@ void lcd_winning()
     j++;
     k++;  
   }
+  wdt_enable(WDTO_8S);              //reactivate watchdog to reset game 
  if (player_number - player_alive == 1) soft_reset; 
 }
 
@@ -589,11 +581,11 @@ void set_input() //returns the pressed input
     
     case 0xFFC23D: input=11; // PLAY or PAUSE
                    break;    
-    case 0xFF6897: input=0; //NULL
+    case 0xFF6897: input=0; 
                    break;   
-    case 0xFF30CF: input=1;  //1               
+    case 0xFF30CF: input=1;                 
                    break; 
-    case 0xFF18E7: input=2;  //2
+    case 0xFF18E7: input=2;  
                    break;  
     case 0xFF7A85: input=3;
                    break; 
@@ -630,18 +622,14 @@ void lcd_refresh()
       break;
     case LCD_PLAYER_SELECT:
       lcd_player_select();
-      rgb_color(0, 255, 0); // green
       break;
     case LCD_PLAYER_TURN:      
-      rgb_color(255, 0, 255); // purple
       lcd_player_turn();
       break;
     case LCD_GAME_OVER:
-      rgb_color(255, 255, 0); // yellow
       lcd_game_over();
       break;
     case LCD_WINNING:
-      rgb_color(0, 255, 255); // aqua
       lcd_winning();
       break; 
     case IR_TEST:
@@ -661,17 +649,16 @@ void lcd_refresh()
 }
 
   
-void loop() {
+void loop() 
+{
   
  wdt_reset();  //resetting watchdog  
  lcd_refresh();
 
-
-  if(lcd_status == LCD_WELCOME) {
+  if(lcd_status == LCD_WELCOME) 
+  {
      lcd_status = LCD_NEW_GAME;   
   }
-  
-
 /*
   if(digitalRead(BUTTON_PIN) == LOW && lcd_status == LCD_NEW_GAME) { // Button pressed
     lcd_status = LCD_PLAYER_SELECT;
