@@ -418,9 +418,9 @@ void lcd_player_select()
   while (lcd_status == LCD_PLAYER_SELECT)
   {  
   lcd.setCursor(0,0);
-  lcd.print("Please select Number");
+  lcd.print("Please select");
   lcd.setCursor(0,1);
-  lcd.print("of Players (1-9)");
+  lcd.print("Players (1-9)");
   delay(LCD_NO_ANIMATION);
   
     if (irrecv.decode(&results))
