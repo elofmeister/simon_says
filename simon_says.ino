@@ -36,8 +36,8 @@ const uint8_t LCD_PLAYER_SELECT = 0x02;
 const uint8_t LCD_PLAYER_TURN = 0x03;
 const uint8_t LCD_GAME_OVER = 0x04;
 const uint8_t LCD_WINNING = 0x05;
-const uint8_t IR_TEST = 0x06;
-const uint8_t LED_TEST = 0x07;
+const uint8_t LCD_IR_TEST = 0x06;
+const uint8_t LCD_GET_HIGHSCORE = 0x07;
 
 //custom characters
 uint8_t block[8] = {0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F};
@@ -70,16 +70,18 @@ uint8_t lcd_status = LCD_WELCOME;
 
 //global game and player vatiables
 const uint8_t STARTING_LIFES = 3;
-const uint8_t MAX_PLAYERS = 9;  
+const uint8_t MAX_PLAYERS = 9; 
+const uint8_t ILLEGAL_INPUT_VALUE = 12; 
 const unsigned int GAMESPEED = 3000;  //not used yet
 unsigned int player_life_turns[MAX_PLAYERS][STARTING_LIFES];   //  life = [x][1]  turn = [x][2]
 unsigned int simon_said[50];                                   //keeps track of the specific number-sequence  
 uint8_t player_number;  
 uint8_t player_alive;
 int turn_player = 0;   // turn player
-int global_turns = 0;  //global turns
-int number_count = 0;  //counting said numbers 
+uint8_t global_turns = 0;  //global turns
+uint8_t number_count = 0;  //counting said numbers 
 uint8_t input = 0;
+
 
 //IrRemote 
 IRrecv irrecv(IR_PIN);
@@ -209,7 +211,7 @@ void get_highscore()
 { 
  
   lcd.clear();
-  address++;
+  address = 2;
   value = EEPROM.read(address);
   lcd.print("Highscore");
   lcd.setCursor(0,1);
@@ -221,8 +223,8 @@ void get_highscore()
   value = EEPROM.read(address);
   Serial.print(address);  
   lcd.clear();  
-  lcd.print("Max Round");
-    lcd.setCursor(0,1);
+  lcd.print("Max Rounds");
+  lcd.setCursor(0,1);
   lcd.print(value, DEC);
   lcd.print("-Player:");
   address++;
@@ -247,11 +249,12 @@ void set_highscore()
     lcd.setCursor(0, 0);
     lcd.print("NEW HIGHSCORE!");
     lcd.setCursor(0, 1);
-    lcd.write(player_life_turns[turn_player][2]);
+    lcd.print(player_life_turns[turn_player][2]);
     lcd.print(" (old:");
-    lcd.write(value);
+    lcd.print(value, DEC);
     lcd.print(")");
-    delay(LCD_SLOW_ANIMATION*10);       
+    delay(LCD_SLOW_ANIMATION*10); 
+    value = (uint8_t) player_life_turns[turn_player][2];  //setting new higscore 
     EEPROM.write(address, value); 
    }
  address = 4;  
@@ -262,15 +265,15 @@ void set_highscore()
     lcd.setCursor(0, 0);
     lcd.print("LONGESTGAME!");
     lcd.setCursor(0, 1);
-    lcd.write(global_turns);
+    lcd.print(global_turns);
     lcd.print(" Rounds");
-    delay(LCD_SLOW_ANIMATION*10);       
+    delay(LCD_SLOW_ANIMATION*10);  
+    value = global_turns;      
     EEPROM.write(address, value); 
     address--;                      //get the playermode
-    value = EEPROM.read(address);
+    value = player_number;
     EEPROM.write(address, value); 
-   }
-    
+   }    
 }
 
 void lcd_welcome() 
@@ -387,11 +390,17 @@ void lcd_new_game()
     lcd.print("Press A Button");  
       if (irrecv.decode(&results))
        { 
-         if(irrecv.decode(&results) == 11)
+         set_input();
+         if (input == 11)
+         {
+          lcd_status = LCD_GET_HIGHSCORE;            
+         }
+         else 
          {
           lcd_status = LCD_PLAYER_SELECT;
+          input = ILLEGAL_INPUT_VALUE;            //seting input to illegal value
          }
-         else  lcd_status = IR_TEST;
+           
          randalf = micros();    //initializing randalf with seed value (~ 110.000.000)
          irrecv.resume();       // ready to receive the next value from IR-Control
        }       
@@ -404,9 +413,10 @@ void lcd_new_game()
 
 void lcd_player_select() 
 {
+  wdt_reset();
+  
   while (lcd_status == LCD_PLAYER_SELECT)
-  {
-  wdt_reset();  
+  {  
   lcd.setCursor(0,0);
   lcd.print("Please select Number");
   lcd.setCursor(0,1);
@@ -416,7 +426,7 @@ void lcd_player_select()
     if (irrecv.decode(&results))
        { 
          set_input();             
-         irrecv.resume(); // ready to receive the next value from IR-Control
+         irrecv.resume();            // ready to receive the next value from IR-Control
        }
        
      if (input >= 1 && input <= 9) 
@@ -442,7 +452,8 @@ void lcd_player_select()
           lcd.print(input);
           lcd.print("-Player Mode");
          }
-        delay(LCD_NO_ANIMATION*3);  
+        delay(LCD_NO_ANIMATION*3);
+        input = ILLEGAL_INPUT_VALUE;            //seting input to illegal value  
         lcd_status = LCD_PLAYER_TURN;    
      }
 
@@ -456,13 +467,13 @@ void lcd_player_turn()
  lcd.createChar(1, heart); 
  lcd.clear();
  
-    timer1_cnt=0; //reseting timer
+    timer1_cnt=0;                    //reseting timer
 
   
   while (1)
   { 
-    rgb_color(255, 0, 255); // purple
-    wdt_disable(); //turning of watchdog while game is in progress
+    rgb_color(255, 0, 255);          // purple
+    wdt_disable();                   //turning of watchdog while game is in progress
    
     lcd.setCursor(0, 0);
     switch (player_life_turns[turn_player][1])
@@ -521,7 +532,7 @@ void lcd_player_turn()
 
 void game()
 {
-   if (global_turns == 0 && turn_player == 0) //first 3 numbers for the first turn
+   if (global_turns == 0 && turn_player == 0)         //first 3 numbers for the first turn
    {
     while(number_count<3)  
     {
@@ -550,12 +561,11 @@ void player_input()
  
   while(input_count<number_count)
   {
-  lcd.setCursor(0,0);
-  lcd.clear();
-    if (irrecv.decode(&results))
+    lcd.setCursor(0,0);
+    lcd.clear();
+    if (irrecv.decode(&results) && input == ILLEGAL_INPUT_VALUE)
          {          
-           set_input();           
-              
+           set_input();                      
            if (simon_said[input_count]==input)
            {                
               lcd.print("right!!!");
@@ -565,7 +575,7 @@ void player_input()
               delay(LCD_SLOW_ANIMATION);
               input_count++;
               player_life_turns[turn_player][2]++;    //correct entries counted for highscore     
-
+                              
               if (player_number > 1 && player_alive == 1) lcd_winning();
            }
            else 
@@ -582,7 +592,8 @@ void player_input()
                   
            }
          lcd.clear();  
-         irrecv.resume(); // ready to receive the next value from IR-Control          
+         irrecv.resume();                        // ready to receive the next value from IR-Control 
+         input = ILLEGAL_INPUT_VALUE; 
         } 
   } 
 }
@@ -705,8 +716,7 @@ void set_input() //returns the pressed input
 {
   switch(results.value)
   {    
-    case 0xFFC23D: input=11; // PLAY or PAUSE 
-                   get_highscore;
+    case 0xFFC23D: input=11; // PLAY/PAUSE button 
                    break;    
     case 0xFF6897: input=0; 
                    break;   
@@ -741,30 +751,30 @@ void lcd_refresh()
   switch(lcd_status) 
   {
     case LCD_WELCOME:
-      rgb_color(0, 0, 255); // blue
-      lcd_welcome();
-      break;
+         rgb_color(0, 0, 255); // blue
+         lcd_welcome();
+         break;
     case LCD_NEW_GAME:
-      lcd_new_game();
-      break;
+         lcd_new_game();
+         break;
     case LCD_PLAYER_SELECT:
-      lcd_player_select();
-      break;
+         lcd_player_select();
+         break;
     case LCD_PLAYER_TURN:      
-      lcd_player_turn();
-      break;
+         lcd_player_turn();
+         break;
     case LCD_GAME_OVER:
-      lcd_game_over();
-      break;
+         lcd_game_over();
+         break;
     case LCD_WINNING:
-      lcd_winning();
-      break; 
-    case IR_TEST:
-      get_highscore();
-      break;
-    case LED_TEST:
-     ledtest();
-      break;  
+         lcd_winning();
+         break; 
+    case LCD_IR_TEST:
+         ir_test();
+         break;
+    case LCD_GET_HIGHSCORE:
+         get_highscore();
+         break;  
     default:
       lcd.print("No Valid Input");
       lcd.setCursor(0,1);
@@ -811,7 +821,7 @@ void ledtest()                     // Lets the single LED-Blink
 }
 
 
-void irtest()  //function is for IR_Control testing
+void ir_test()  //function is for IR_Control testing
 {
   if (irrecv.decode(&results))
     {
