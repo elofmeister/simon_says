@@ -59,8 +59,8 @@ int j = 0;
 int k = 0;
 int l = 1;
 
-//random number generator variables 
-long randalf = 0; //global random number and seedvalue
+//random number generator variables
+long randalf = 0;                    //global random number and seedvalue
 const long MULTIPLIER = 1103515245;  //c standard value
 const int INCREMENT = 12345;         //stepwidth
 const uint8_t MAX_VALUE = 10;        //maximal random value
@@ -70,121 +70,123 @@ uint8_t lcd_status = LCD_WELCOME;
 
 //global game and player vatiables
 const uint8_t STARTING_LIFES = 3;
-const uint8_t MAX_PLAYERS = 9; 
-const uint8_t ILLEGAL_INPUT_VALUE = 12; 
-const unsigned int GAMESPEED = 3000;  //not used yet
+const uint8_t MAX_PLAYERS = 9;
+const uint8_t ILLEGAL_INPUT_VALUE = 12;   //is used for the case, that the non-turn-player presses a button
+const unsigned int GAMESPEED = 3000;      //not used yet
 unsigned int player_life_turns[MAX_PLAYERS][STARTING_LIFES];   //  life = [x][1]  turn = [x][2]
-unsigned int simon_said[50];                                   //keeps track of the specific number-sequence  
-uint8_t player_number;  
+unsigned int simon_said[50];                                   //keeps track of the specific number-sequence
+uint8_t player_number;
 uint8_t player_alive;
 int turn_player = 0;   // turn player
 uint8_t global_turns = 0;  //global turns
-uint8_t number_count = 0;  //counting said numbers 
+uint8_t number_count = 0;  //counting said numbers
 uint8_t input = 0;
 
 
-//IrRemote 
+//IrRemote
 IRrecv irrecv(IR_PIN);
 decode_results results;
-int refresh=0;
+int refresh = 0;
 
 //global timer variables
 uint8_t timer1_toggle = 0;
 long timer1_cnt = 0;
-long timer1_old_cnt=0; 
+long timer1_old_cnt = 0;
 
-//EEPROM variables 
+//EEPROM variables
 unsigned int address = 0; //adress 0 = version, 1 = flagscore, 2 = higscore, 3 = playermode, 4 = maxrounds
 byte rom_version = B00000; //Version 0
 byte value;
 
-void setup() {  
+void setup() {
   pinMode(BUTTON_PIN, INPUT);   //is not necessary
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  lcd.begin();  
+  lcd.begin();
   lcd.backlight();
-  Serial.begin(9600); //for IR, Dataconnection and other stuff
-  irrecv.enableIRIn(); // Start the receiver
+  Serial.begin(9600);    //starting serial connection for IR,Debugging etc. 
+  irrecv.enableIRIn();   // Start the receiver
   pinMode(LED_PIN, OUTPUT);
   pinMode(R_PIN, OUTPUT);
   pinMode(G_PIN, OUTPUT);
   pinMode(B_PIN, OUTPUT);
   timer_setup();
   get_version();
-  //rom_reset();
+  //rom_reset();       
 
-  wdt_disable(); //disable the watchdog
+  wdt_disable();       //disable the watchdog
   wdt_enable(WDTO_8S); //enable watchdog = 20s
 }
-  
+
 
 void timer_setup()
 {
- cli();  //disallow interrupts
- 
-  TCCR1A = 0;// set Timer1 Registers to 0
+  cli();           //disallow interrupts
+
+  TCCR1A = 0;      // set Timer1 Registers to 0
   TCCR1B = 0;
-  TCNT1  = 0;//initialize counter value to 0
-  // compare register set to 20Hz values
-  OCR1A = 12500;// = (16000000)/(12500*64) = 20Hz (must be <65536)
-  // turn on CTC mode --> no process point evaluation necessary anymore
+  TCNT1  = 0;      //initialize counter value to 0
+     // compare register set to 20Hz values
+  OCR1A = 12500;   // = (16000000)/(12500*64) = 20Hz (must be <65536)
+     // turn on CTC mode --> no process point evaluation necessary anymore
   TCCR1B |= (1 << WGM12);
-  // Set CS12 bits for 64-bit prescaler
-  TCCR1B |= (1 << CS11)|(1 << CS10); 
-  // enable timer compare interrupt
+     // Set CS12 bits for 64-bit prescaler
+  TCCR1B |= (1 << CS11) | (1 << CS10);
+     // enable timer compare interrupt
   TIMSK1 |= (1 << OCIE1A);
 
- sei(); //allow interrupts 
+  sei();           //allow interrupts
 }
 
 
-ISR(TIMER1_COMPA_vect)  //interupt sercvice routine for timer 1 
+ISR(TIMER1_COMPA_vect)  //interupt sercvice routine for timer 1
 {
-  
-  timer1_cnt++;  
-  
-  if (timer1_toggle == 1){
-    digitalWrite(LED_PIN,HIGH);  
-    timer1_toggle = 0;  //shows that device is on
-    }
-  else if(timer1_toggle == 0){
-    digitalWrite(LED_PIN,LOW);
-    timer1_toggle = 1;  
+
+  timer1_cnt++;
+
+  if (timer1_toggle == 1) 
+  {
+    digitalWrite(LED_PIN, HIGH); //shows that device is on
+    timer1_toggle = 0;  
+  }
+  else if (timer1_toggle == 0) 
+  {
+    digitalWrite(LED_PIN, LOW);
+    timer1_toggle = 1;
   }
 }
 
 void get_version()
 {
-    value = EEPROM.read(address);
-    if (rom_version != value)
-    {
+  value = EEPROM.read(address);
+  if (rom_version != value)
+  {
     lcd.print("EEPROM Version");
-    lcd.setCursor(0,1);
+    lcd.setCursor(0, 1);
     lcd.print("Corrupted!");
-    delay(LCD_SLOW_ANIMATION*10);
+    delay(LCD_SLOW_ANIMATION * 10);
     lcd.clear();
     lcd.print("Please Update");
-    lcd.setCursor(0,1);
+    lcd.setCursor(0, 1);
     lcd.print("to Version:");
     lcd.print(value, DEC);
-    delay(LCD_SLOW_ANIMATION*10);
+    delay(LCD_SLOW_ANIMATION * 10);
     soft_reset();
-    }
-/***  Can be used for automted changing second screen after softreboot.
-      But its not good for the ROM-lifecycle...  
-         
-     else  
-    {
-      address++;
-      value = EEPROM.read(address);   //changing between newgame/highscore screen 
-      if (value = 0) 
+  }
+  /***  Can be used for automted changing second screen after softreboot.
+        But its not good for the ROM-lifecycle...
+
+       else
       {
-          EEPROM.write(address, 1);   
+        address++;
+        value = EEPROM.read(address);   //changing between newgame/highscore screen
+        if (value = 0)
+        {
+            EEPROM.write(address, 1);
+        }
+        else EEPROM.write(address, 0);
       }
-      else EEPROM.write(address, 0);  
-    }
-    
-***/ 
+
+  ***/
 }
 
 void rgb_color( int red, int green, int blue) //sets the RGB-colors
@@ -197,54 +199,54 @@ void rgb_color( int red, int green, int blue) //sets the RGB-colors
 void ir_input()
 {
   if (irrecv.decode(&results))
-    {
-     irrecv.resume(); // Receive the next value
-    }
+  {
+    irrecv.resume(); // Receive the next value
+  }
 }
 
-void randomer() //linear conguential generator , generating pseudorandom numbers within the limits [0;9]
-{   
-  randalf = abs((MULTIPLIER * randalf + INCREMENT )% MAX_VALUE);   
+void randomer()     //linear conguential generator , generating pseudorandom numbers within the limits [0;9]
+{
+  randalf = abs((MULTIPLIER * randalf + INCREMENT ) % MAX_VALUE);
 }
 
-void get_highscore()
-{ 
- 
+void get_highscore()   
+{
+
   lcd.clear();
   address = 2;
-  value = EEPROM.read(address);
+  value = EEPROM.read(address);   //reads higscore from eeprom as byte
   lcd.print("Highscore");
-  lcd.setCursor(0,1);
+  lcd.setCursor(0, 1);
   lcd.print("BEST:");
-  lcd.print(value, DEC);
-  delay(LCD_SLOW_ANIMATION*10);
-  
+  lcd.print(value, DEC);          //prints highscore in decimal value
+  delay(LCD_SLOW_ANIMATION * 10);
+
   address++;
-  value = EEPROM.read(address);
-  Serial.print(address);  
-  lcd.clear();  
+  value = EEPROM.read(address);   //reads playermode
+  Serial.print(address);
+  lcd.clear();
   lcd.print("Max Rounds");
-  lcd.setCursor(0,1);
-  lcd.print(value, DEC);
+  lcd.setCursor(0, 1);
+  lcd.print(value, DEC);   
   lcd.print("-Player:");
   address++;
-  value = EEPROM.read(address);
+  value = EEPROM.read(address);   //reads max rounds played
   lcd.print(value, DEC);
-  delay(LCD_SLOW_ANIMATION*10); 
-   
-    if (address == 5)  
-     {
-      address = 1;  
-     }  
- soft_reset();  
+  delay(LCD_SLOW_ANIMATION * 10);
+
+  if (address == 5)
+  {
+    address = 1;
+  }
+  soft_reset();
 }
 
 void set_highscore()
-{ 
- address = 2;
- value = EEPROM.read(address);
- if (player_life_turns[turn_player][2] >= value)
-   {
+{
+  address = 2;
+  value = EEPROM.read(address);
+  if (player_life_turns[turn_player][2] >= value)  
+  {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("NEW HIGHSCORE!");
@@ -253,32 +255,32 @@ void set_highscore()
     lcd.print(" (old:");
     lcd.print(value, DEC);
     lcd.print(")");
-    delay(LCD_SLOW_ANIMATION*10); 
-    value = (uint8_t) player_life_turns[turn_player][2];  //setting new higscore 
-    EEPROM.write(address, value); 
-   }
- address = 4;  
- value = EEPROM.read(address);
- if (global_turns >= value)
-   {
+    delay(LCD_SLOW_ANIMATION * 10);
+    value = (uint8_t) player_life_turns[turn_player][2];  //sets new higscore using cast-function
+    EEPROM.write(address, value);
+  }
+  address = 4;
+  value = EEPROM.read(address);
+  if (global_turns >= value)
+  {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("LONGESTGAME!");
     lcd.setCursor(0, 1);
     lcd.print(global_turns);
     lcd.print(" Rounds");
-    delay(LCD_SLOW_ANIMATION*10);  
-    value = global_turns;      
-    EEPROM.write(address, value); 
-    address--;                      //get the playermode
+    delay(LCD_SLOW_ANIMATION * 10);
+    value = global_turns;
+    EEPROM.write(address, value);    //sets new max rounds
+    address--;                       //get the playermode
     value = player_number;
-    EEPROM.write(address, value); 
-   }    
+    EEPROM.write(address, value);    //sets playermode
+  }
 }
 
-void lcd_welcome() 
-{ 
-  lcd.createChar(0, block);  
+void lcd_welcome()
+{
+  lcd.createChar(0, block);
   lcd.createChar(1, S);
   lcd.createChar(2, I);
   lcd.createChar(3, M);
@@ -287,526 +289,525 @@ void lcd_welcome()
   lcd.createChar(6, A);
   lcd.createChar(7, Y);
 
-while (k <= 4)
- {
+  while (k <= 4)
+  {
     while (i <= LCD_DISPLAY_SIZE + LCD_ANIMATION_OFFSET)
     {
       lcd.setCursor(i, 0);
-      lcd.printByte(0);  
+      lcd.printByte(0);
       lcd.setCursor(i, 1);
       lcd.printByte(0);
-       
+
       i++;
-    
+
       if (i >= 8)
-        {
-         lcd.setCursor(j, 0);
-         lcd.print(" ");    
-         lcd.setCursor(j, 1);
-         lcd.print(" ");      
-         j++;
-        }
-  
-       if (j>3 && j<9 && k>=1)  //prints Simon
-         {
-          lcd.setCursor(j-1, 0);
-          lcd.printByte(l);
-          l++;  
-         }
-  
-       if (k >= 2)              //prints Says
-         { 
-           switch (j)
-           {       
-           case 10:lcd.setCursor(j-1, 0);
-                   lcd.printByte(1);
-                   break;
-           case 11:lcd.setCursor(j-1, 0);
-                   lcd.printByte(6);
-                   break;
-           case 12:lcd.setCursor(j-1, 0);
-                   lcd.printByte(7);
-                   break;
-           case 13:lcd.setCursor(j-1, 0);
-                   lcd.printByte(1);
-                   break;
-           default: break;        
-           }      
-         }
-       
-      if (j > LCD_ANIMATION_OFFSET && k==3)        //prints version
-        {
-          lcd.setCursor(j-7, 1);
-          lcd.print(" V.1.3 ");
-        }
-      else;
-            
-      delay(LCD_FAST_ANIMATION);
+      {
+        lcd.setCursor(j, 0);
+        lcd.print(" ");
+        lcd.setCursor(j, 1);
+        lcd.print(" ");
+        j++;
       }
-      
-     i=0;
-     j=0;
-     l=1;
-     k++;
-   }
+
+      if (j > 3 && j < 9 && k >= 1) //prints Simon
+      {
+        lcd.setCursor(j - 1, 0);
+        lcd.printByte(l);
+        l++;
+      }
+
+      if (k >= 2)                   //prints Says
+      {
+        switch (j)
+        {
+          case 10: lcd.setCursor(j - 1, 0);
+            lcd.printByte(1);
+            break;
+          case 11: lcd.setCursor(j - 1, 0);
+            lcd.printByte(6);
+            break;
+          case 12: lcd.setCursor(j - 1, 0);
+            lcd.printByte(7);
+            break;
+          case 13: lcd.setCursor(j - 1, 0);
+            lcd.printByte(1);
+            break;
+          default: break;
+        }
+      }
+
+      if (j > LCD_ANIMATION_OFFSET && k == 3)      //prints version
+      {
+        lcd.setCursor(j - 7, 1);
+        lcd.print(" V.1.3 ");
+      }
+      else;
+
+      delay(LCD_FAST_ANIMATION);
+    }
+
+    i = 0;
+    j = 0;
+    l = 1;
+    k++;
+  }
 }
 
-void lcd_new_game() 
+void lcd_new_game()
 {
-  lcd.createChar(0, block);  
+  lcd.createChar(0, block);
   i = LCD_DISPLAY_SIZE + LCD_ANIMATION_OFFSET;
   j = LCD_DISPLAY_SIZE;
   k = 0;
 
-      while (i >= -LCD_ANIMATION_OFFSET)    //prints moving Blocks
-      {
-      lcd.setCursor(i, 0);
-      lcd.write(0);  
-      lcd.setCursor(i, 1);
-      lcd.printByte(0);
-       
-      i--;
-    
-      if (i <= LCD_DISPLAY_SIZE - LCD_ANIMATION_OFFSET)
-          {
-          lcd.setCursor(j, 0);
-          lcd.print(" ");    
-          lcd.setCursor(j, 1);
-          lcd.print(" ");      
-          j--;
-          }
-  
-       if (j <= 12)
-       {
-         lcd.setCursor(j+1, 0);   
-         lcd.print("    NEW GAME ");
-       }
-          delay(LCD_FAST_ANIMATION);      
-       } 
-  
-    while (lcd_status == LCD_NEW_GAME)
+  while (i >= -LCD_ANIMATION_OFFSET)    //prints moving Blocks
+  {
+    lcd.setCursor(i, 0);
+    lcd.write(0);
+    lcd.setCursor(i, 1);
+    lcd.printByte(0);
+
+    i--;
+
+    if (i <= LCD_DISPLAY_SIZE - LCD_ANIMATION_OFFSET)
     {
+      lcd.setCursor(j, 0);
+      lcd.print(" ");
+      lcd.setCursor(j, 1);
+      lcd.print(" ");
+      j--;
+    }
+
+    if (j <= 12)
+    {
+      lcd.setCursor(j + 1, 0);
+      lcd.print("    NEW GAME ");
+    }
+    delay(LCD_FAST_ANIMATION);
+  }
+
+  while (lcd_status == LCD_NEW_GAME)
+  {
     lcd.setCursor(1, 1);
-    lcd.print("Press A Button");  
-      if (irrecv.decode(&results))
-       { 
-         set_input();
-         if (input == 11)
-         {
-          lcd_status = LCD_GET_HIGHSCORE;            
-         }
-         else 
-         {
-          lcd_status = LCD_PLAYER_SELECT;
-          input = ILLEGAL_INPUT_VALUE;            //seting input to illegal value
-         }
-           
-         randalf = micros();    //initializing randalf with seed value (~ 110.000.000)
-         irrecv.resume();       // ready to receive the next value from IR-Control
-       }       
-     // Watchdog triggers here after ~3 sec inactivity --> lcd_welcome screen
-     }
-     
+    lcd.print("Press A Button");
+    if (irrecv.decode(&results))
+    {
+      set_input();
+      if (input == 11)
+      {
+        lcd_status = LCD_GET_HIGHSCORE;
+      }
+      else
+      {
+        lcd_status = LCD_PLAYER_SELECT;
+        input = ILLEGAL_INPUT_VALUE;            //seting input to illegal value
+      }
+
+      randalf = micros();    //initializing randalf with seed value (~ 110.000.000)
+      irrecv.resume();       // ready to receive the next value from IR-Control
+    }
+    // Watchdog triggers here after ~3 sec inactivity --> lcd_welcome screen
+  }
+
 }
 
- 
 
-void lcd_player_select() 
+
+void lcd_player_select()
 {
   wdt_reset();
-  
-  while (lcd_status == LCD_PLAYER_SELECT)
-  {  
-  lcd.setCursor(0,0);
-  lcd.print("Please select");
-  lcd.setCursor(0,1);
-  lcd.print("Players (1-9)");
-  delay(LCD_NO_ANIMATION);
-  
-    if (irrecv.decode(&results))
-       { 
-         set_input();             
-         irrecv.resume();            // ready to receive the next value from IR-Control
-       }
-       
-     if (input >= 1 && input <= 9) 
-     {
-        player_number = input;      //setting up players and lifepoints
-        player_alive = player_number;
-        for(i=0;i<=input;i++)
-        {
-           player_life_turns[i][1]=STARTING_LIFES;
-        }
-        lcd.clear();
-        lcd.setCursor(2,0);
-        lcd.print("You Choose:"); 
-        lcd.setCursor(0,1);
-        
-        if (input == 1)
-         {
-           lcd.print("Single Player");
-         }
-        else
-         {
-          lcd.print(" ");
-          lcd.print(input);
-          lcd.print("-Player Mode");
-         }
-        delay(LCD_NO_ANIMATION*3);
-        input = ILLEGAL_INPUT_VALUE;            //seting input to illegal value  
-        lcd_status = LCD_PLAYER_TURN;    
-     }
 
-  }   
+  while (lcd_status == LCD_PLAYER_SELECT)
+  {
+    lcd.setCursor(0, 0);
+    lcd.print("Please select");
+    lcd.setCursor(0, 1);
+    lcd.print("Players (1-9)");
+    delay(LCD_NO_ANIMATION);
+
+    if (irrecv.decode(&results))
+    {
+      set_input();
+      irrecv.resume();            // ready to receive the next value from IR-Control
+    }
+
+    if (input >= 1 && input <= 9)
+    {
+      player_number = input;      //setting up players and lifepoints
+      player_alive = player_number;
+      for (i = 0; i <= input; i++)
+      {
+        player_life_turns[i][1] = STARTING_LIFES;
+      }
+      lcd.clear();
+      lcd.setCursor(2, 0);
+      lcd.print("You Choose:");
+      lcd.setCursor(0, 1);
+
+      if (input == 1)
+      {
+        lcd.print("Single Player");
+      }
+      else
+      {
+        lcd.print(" ");
+        lcd.print(input);
+        lcd.print("-Player Mode");
+      }
+      delay(LCD_NO_ANIMATION * 3);
+      input = ILLEGAL_INPUT_VALUE;            //seting input to illegal value
+      lcd_status = LCD_PLAYER_TURN;
+    }
+
+  }
 }
 
-void lcd_player_turn() 
+void lcd_player_turn()
 {
 
- lcd.createChar(0, skull);  
- lcd.createChar(1, heart); 
- lcd.clear();
- 
-    timer1_cnt=0;                    //reseting timer
+  lcd.createChar(0, skull);
+  lcd.createChar(1, heart);
+  lcd.clear();
 
-  
+  timer1_cnt = 0;                    //reseting timer
+
+
   while (1)
-  { 
+  {
     rgb_color(255, 0, 255);          // purple
     wdt_disable();                   //turning of watchdog while game is in progress
-   
+
     lcd.setCursor(0, 0);
-    switch (player_life_turns[turn_player][1])
-    { 
+    switch (player_life_turns[turn_player][1])  //prints lives/deaths of turn player
+    {
       case (0): lcd.write(0);
-                lcd.write(0);
-                lcd.write(0); 
-                break;
+        lcd.write(0);
+        lcd.write(0);
+        break;
       case (1): lcd.write(0);
-                lcd.write(0);
-                lcd.write(1);
-                break;
+        lcd.write(0);
+        lcd.write(1);
+        break;
       case (2): lcd.write(0);
-                lcd.write(1);
-                lcd.write(1);
-                break;
+        lcd.write(1);
+        lcd.write(1);
+        break;
       case (3): lcd.write(1);
-                lcd.write(1);
-                lcd.write(1);
-                break;                
+        lcd.write(1);
+        lcd.write(1);
+        break;
     }
 
     lcd.setCursor(0, 1);
     switch (player_life_turns[turn_player][1])
-    { 
-      case (0): lcd.print("Player:");
-                lcd.print(turn_player+1);  
-                lcd.print("DEAD:");
-                lcd.print(player_life_turns[turn_player][2]);
-                delay(LCD_SLOW_ANIMATION*5);  // Marker für maddin
-                break;
-      default: lcd.print("Player:");
-               lcd.print(turn_player+1);  
-               lcd.print("Turn:");
-               lcd.print(global_turns+1);
-               delay(LCD_SLOW_ANIMATION*20);  // Marker für maddin
-               game();
-               player_input();  
-               break;
-    }      
-        
-    turn_player++;
-    
-    if (turn_player==player_number)
     {
-      turn_player=0;
+      case (0): lcd.print("Player:");      
+        lcd.print(turn_player + 1);
+        lcd.print("DEAD:");
+        lcd.print(player_life_turns[turn_player][2]);
+        delay(LCD_SLOW_ANIMATION * 5); // Marker für maddin
+        break;
+      default: lcd.print("Player:");
+        lcd.print(turn_player + 1);
+        lcd.print("Turn:");
+        lcd.print(global_turns + 1);
+        delay(LCD_SLOW_ANIMATION * 20); // Marker für maddin
+        game();
+        player_input();
+        break;
+    }
+
+    turn_player++;
+
+    if (turn_player == player_number)
+    {
+      turn_player = 0;
       global_turns++;
-      randomer(); 
-      number_count++;   
-      simon_said[number_count]=randalf;      
-    }   
+      randomer();
+      number_count++;
+      simon_said[number_count] = randalf;
+    }
   }
- lcd.setCursor(0, 0);
- lcd.print("TIMER DOWN");
+  lcd.setCursor(0, 0);
+  lcd.print("TIMER DOWN");
 }
 
 void game()
 {
-   if (global_turns == 0 && turn_player == 0)         //first 3 numbers for the first turn
-   {
-    while(number_count<3)  
-    {
-     randomer(); 
-     simon_said[number_count]=randalf;
-     number_count++;
-    }
-   }
-   
-  lcd.clear();  
-  for(int x=0; x<number_count; x++)
+  if (global_turns == 0 && turn_player == 0)         //first 3 numbers for the first turn
   {
-    lcd.setCursor(4,0);
-    lcd.print(simon_said[x]);
-    delay(LCD_NO_ANIMATION); //speedvalue / number of chars +- some modifier maybe
+    while (number_count < 3)
+    {
+      randomer();
+      simon_said[number_count] = randalf;
+      number_count++;
+    }
   }
-  lcd.setCursor(0,1);
+
+  lcd.clear();
+  for (int x = 0; x < number_count; x++)
+  {
+    lcd.setCursor(4, 0);
+    lcd.print(simon_said[x]);
+    delay(LCD_NO_ANIMATION);   //speedvalue / number of chars +- some modifier maybe
+  }
+  lcd.setCursor(0, 1);
   lcd.print("go! go! go!");
-  delay(LCD_NO_ANIMATION); 
+  delay(LCD_NO_ANIMATION);
 }
 
 
 void player_input()
 {
   int input_count = 0;
- 
-  while(input_count<number_count)
+
+  while (input_count < number_count)
   {
-    lcd.setCursor(0,0);
+    lcd.setCursor(0, 0);
     lcd.clear();
     if (irrecv.decode(&results) && input == ILLEGAL_INPUT_VALUE)
-         {          
-           set_input();                      
-           if (simon_said[input_count]==input)
-           {                
-              lcd.print("right!!!");
-              lcd.setCursor(1,1);
-              lcd.print("right!!!"); 
-              rgb_color(0, 255, 0);                   // green 
-              delay(LCD_SLOW_ANIMATION);
-              input_count++;
-              player_life_turns[turn_player][2]++;    //correct entries counted for highscore     
-                              
-              if (player_number > 1 && player_alive == 1) lcd_winning();
-           }
-           else 
-           {
-              lcd.print("wrong!!!");
-              lcd.setCursor(1,1);
-              lcd.print("wrong!!!");              
-              rgb_color(255, 0, 0); // red
-              delay(LCD_SLOW_ANIMATION);
-              player_life_turns[turn_player][1]--;  //wrong entry = lesser life
-              input_count=number_count;             //wrong entry = turn over
-              
-              if (player_life_turns[turn_player][1] == 0) lcd_game_over();
-                  
-           }
-         lcd.clear();  
-         irrecv.resume();                        // ready to receive the next value from IR-Control 
-         input = ILLEGAL_INPUT_VALUE; 
-        } 
-  } 
+    {
+      set_input();
+      if (simon_said[input_count] == input)
+      {
+        lcd.print("right!!!");
+        lcd.setCursor(1, 1);
+        lcd.print("right!!!");
+        rgb_color(0, 255, 0);                   // green
+        delay(LCD_SLOW_ANIMATION);
+        input_count++;
+        player_life_turns[turn_player][2]++;    //correct entries counted for highscore
+
+        if (player_number > 1 && player_alive == 1) lcd_winning();
+      }
+      else
+      {
+        lcd.print("wrong!!!");
+        lcd.setCursor(1, 1);
+        lcd.print("wrong!!!");
+        rgb_color(255, 0, 0);                 // red
+        delay(LCD_SLOW_ANIMATION);
+        player_life_turns[turn_player][1]--;  //wrong entry = lesser life
+        input_count = number_count;           //wrong entry = turn over
+
+        if (player_life_turns[turn_player][1] == 0) lcd_game_over();
+
+      }
+      lcd.clear();
+      irrecv.resume();                        // ready to receive the next value from IR-Control
+      input = ILLEGAL_INPUT_VALUE;
+    }
+  }
 }
 
-void lcd_game_over()  
+void lcd_game_over()
 {
- rgb_color(255, 255, 0); // yellow 
- k=0; 
- lcd.createChar(0, skull);
+  rgb_color(255, 255, 0);     // yellow
+  k = 0;
+  lcd.createChar(0, skull);
 
-  while (k<=1)
-    { 
-      k++;
-       i=0;
-       j=0;
-       
-      while (i <= LCD_DISPLAY_SIZE + LCD_ANIMATION_OFFSET)
-      {
-      lcd.setCursor(i, 0);
-      lcd.write(0);        
+  while (k <= 1)
+  {
+    k++;
+    i = 0;
+    j = 0;
+
+    while (i <= LCD_DISPLAY_SIZE + LCD_ANIMATION_OFFSET)
+    {
+      lcd.setCursor(i, 0);    //prints moving skulls
+      lcd.write(0);
       i++;
-    
+
       if (i >= LCD_ANIMATION_OFFSET)
-          {
-          lcd.setCursor(j, 0);
-          lcd.print(" ");               
-          j++;
-          }     
-      delay(LCD_FAST_ANIMATION*2);
-      } 
-     
-      while (i > -LCD_ANIMATION_OFFSET +1)
       {
-      lcd.setCursor(i, 1);
-      lcd.write(0);        
-      i--;
-    
-      if (i <= LCD_DISPLAY_SIZE - LCD_ANIMATION_OFFSET +1)
-          {
-          lcd.setCursor(j, 1);
-          lcd.print(" ");               
-          j--;
-          }     
-      delay(LCD_FAST_ANIMATION*2);
+        lcd.setCursor(j, 0);
+        lcd.print(" ");
+        j++;
       }
-   lcd.setCursor(0, 0);
-   lcd.clear();
-   lcd.print("    G A M E "); 
-   lcd.setCursor(0, 1);
-   lcd.print("    O V E R ");
-   delay(LCD_SLOW_ANIMATION*10);
-   wdt_reset();
-   }
+      delay(LCD_FAST_ANIMATION * 2);
+    }
 
- player_alive--;                        //one player died 
- wdt_enable(WDTO_8S);                   //reactivate watchdog to reset game
+    while (i > -LCD_ANIMATION_OFFSET + 1)
+    {
+      lcd.setCursor(i, 1);
+      lcd.write(0);
+      i--;
 
- if (player_number == 1) 
+      if (i <= LCD_DISPLAY_SIZE - LCD_ANIMATION_OFFSET + 1)
+      {
+        lcd.setCursor(j, 1);
+        lcd.print(" ");
+        j--;
+      }
+      delay(LCD_FAST_ANIMATION * 2);
+    }
+    lcd.setCursor(0, 0);
+    lcd.clear();
+    lcd.print("    G A M E ");
+    lcd.setCursor(0, 1);
+    lcd.print("    O V E R ");
+    delay(LCD_SLOW_ANIMATION * 10);
+  }
+
+  player_alive--;                        //one player died
+  wdt_enable(WDTO_8S);                   //reactivate watchdog to reset game
+
+  if (player_number == 1)
   {
     set_highscore();
     soft_reset();
   }
- if (player_number - player_alive == 0) 
+  if (player_number - player_alive == 0)
   {
-   set_highscore();
-   soft_reset();
+    set_highscore();
+    soft_reset();
   }
 }
 
 
 void lcd_winning()
 {
- rgb_color(0, 255, 255); // aqua
- i = 0;
- j = 0;  
- k = 0; 
- lcd.createChar(0, crown);
- lcd.createChar(1, heart);
- lcd.createChar(2, star);
- 
-  while (k<20)
+  rgb_color(0, 255, 255);    // aqua
+  i = 0;
+  j = 0;
+  k = 0;
+  lcd.createChar(0, crown);
+  lcd.createChar(1, heart);
+  lcd.createChar(2, star);
+
+  while (k < 20)
   {
     lcd.setCursor(0, 0);
     lcd.write(i);
     lcd.write(i);
     lcd.print(" YOU WIN!!! ");
     lcd.write(i);
-    lcd.write(i); 
+    lcd.write(i);
     lcd.setCursor(0, 1);
     lcd.write(i);
     lcd.write(i);
     lcd.write(i);
-    lcd.print("SCORE:");    
-    lcd.print(player_life_turns[turn_player][2]); 
+    lcd.print("SCORE:");
+    lcd.print(player_life_turns[turn_player][2]);
     lcd.setCursor(13, 1);
     lcd.write(i);
     lcd.write(i);
     lcd.write(i);
-    delay(LCD_SLOW_ANIMATION*5); 
-    if (i==2) i=i-3;
+    delay(LCD_SLOW_ANIMATION * 5);
+    if (i == 2) i = i - 3;
     i++;
     j++;
-    k++;  
+    k++;
   }
-  wdt_enable(WDTO_8S);              //reactivate watchdog to reset game 
- if (player_number - player_alive == 1) 
- {
-  set_highscore();
-  soft_reset; 
- }
-}
-
-
-void soft_reset() 
-{
- delay(8001); //if delay is greater then 8seconds , immidiate watchdog reset
-}
-
-void set_input() //returns the pressed input
-{
-  switch(results.value)
-  {    
-    case 0xFFC23D: input=11; // PLAY/PAUSE button 
-                   break;    
-    case 0xFF6897: input=0; 
-                   break;   
-    case 0xFF30CF: input=1;                 
-                   break; 
-    case 0xFF18E7: input=2;  
-                   break;  
-    case 0xFF7A85: input=3;
-                   break; 
-    case 0xFF10EF: input=4;
-                   break;
-    case 0xFF38C7: input=5;
-                   break; 
-    case 0xFF5AA5: input=6;
-                   break; 
-    case 0xFF42BD: input=7;
-                   break; 
-    case 0xFF4AB5: input=8;
-                   break;  
-    case 0xFF52AD: input=9;
-                   break; 
-    case 0xFFFFFF: break;   //if button is pressed continuously  
-    default:  break; 
+  wdt_enable(WDTO_8S);              //reactivate watchdog to reset game
+  if (player_number - player_alive == 1)
+  {
+    set_highscore();
+    soft_reset;
   }
 }
 
 
-void lcd_refresh() 
+void soft_reset()
+{
+  delay(8001);     //if delay is greater then 8seconds , immidiate watchdog reset
+}
+
+void set_input()   //assigns the value of pressed button to input
+{
+  switch (results.value)
+  {
+    case 0xFFC23D: input = 11; // PLAY/PAUSE button
+      break;
+    case 0xFF6897: input = 0;
+      break;
+    case 0xFF30CF: input = 1;
+      break;
+    case 0xFF18E7: input = 2;
+      break;
+    case 0xFF7A85: input = 3;
+      break;
+    case 0xFF10EF: input = 4;
+      break;
+    case 0xFF38C7: input = 5;
+      break;
+    case 0xFF5AA5: input = 6;
+      break;
+    case 0xFF42BD: input = 7;
+      break;
+    case 0xFF4AB5: input = 8;
+      break;
+    case 0xFF52AD: input = 9;
+      break;
+    case 0xFFFFFF: break;   //if button is pressed continuously
+    default:  break;
+  }
+}
+
+
+void lcd_refresh()
 {
   lcd.clear();
   lcd.setCursor(0, 0);
-  switch(lcd_status) 
+  switch (lcd_status)
   {
     case LCD_WELCOME:
-         rgb_color(0, 0, 255); // blue
-         lcd_welcome();
-         break;
+      rgb_color(0, 0, 255);   // blue
+      lcd_welcome();
+      break;
     case LCD_NEW_GAME:
-         lcd_new_game();
-         break;
+      lcd_new_game();
+      break;
     case LCD_PLAYER_SELECT:
-         lcd_player_select();
-         break;
-    case LCD_PLAYER_TURN:      
-         lcd_player_turn();
-         break;
+      lcd_player_select();
+      break;
+    case LCD_PLAYER_TURN:
+      lcd_player_turn();
+      break;
     case LCD_GAME_OVER:
-         lcd_game_over();
-         break;
+      lcd_game_over();
+      break;
     case LCD_WINNING:
-         lcd_winning();
-         break; 
+      lcd_winning();
+      break;
     case LCD_IR_TEST:
-         ir_test();
-         break;
+      ir_test();
+      break;
     case LCD_GET_HIGHSCORE:
-         get_highscore();
-         break;  
+      get_highscore();
+      break;
     default:
       lcd.print("No Valid Input");
-      lcd.setCursor(0,1);
+      lcd.setCursor(0, 1);
       lcd.print("Try again!!!");
-      delay(1000);
+      delay(LCD_NO_ANIMATION);
       break;
- 
+
   }
 }
 
-  
-void loop() 
-{
-  
- wdt_reset();  //resetting watchdog  
- lcd_refresh();
 
-  if(lcd_status == LCD_WELCOME) 
+void loop()
+{
+
+  wdt_reset();  //resetting watchdog
+  lcd_refresh();
+
+  if (lcd_status == LCD_WELCOME)
   {
-     lcd_status = LCD_NEW_GAME;   
-  }   
+    lcd_status = LCD_NEW_GAME;
+  }
 
 }
 
 
-// -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- 
+// -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS --
 
 void rom_reset()
 {
   for (int i = 0 ; i < EEPROM.length() ; i++)  // EEPROM.length() determine the eeprom size dynamically, to increase compatabilty
   {
-  EEPROM.write(i, 0);
+    EEPROM.write(i, 0);
   }
   lcd.print("ROM RESET DONE");
   delay(1900);
@@ -815,92 +816,92 @@ void rom_reset()
 void ledtest()                     // Lets the single LED-Blink
 {
   digitalWrite(LED_PIN, HIGH);   // sets the LED on
-  delay(500);                  // waits for a second
+  delay(500);                    // waits for a second
   digitalWrite(LED_PIN, LOW);    // sets the LED off
-  delay(500);                  // waits for a second
+  delay(500);                    // waits for a second
 }
 
 
-void ir_test()  //function is for IR_Control testing
+void ir_test()    //function is for IR_Control testing
 {
   if (irrecv.decode(&results))
-    {
-    Serial.println(results.value, HEX); //send HexCode of pressed Button to SerialPort 
+  {
+    Serial.println(results.value, HEX); //send HexCode of pressed Button to SerialPort
     buttontest();
-    irrecv.resume(); // Receive the next value
-    }
+    irrecv.resume();                    
+  }
 }
 
-void buttontest() //displays the pressed Button on IR-Control on LCD-Screen
+void buttontest()  //displays the pressed Button on IR-Control on LCD-Screen
 {
-  switch(results.value)
+  switch (results.value)
   {
     case 0xFFA25D: lcd.print("CH-");  //CH-
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;
-    case 0xFF629D: lcd.print("CH"); //CH
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break; 
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF629D: lcd.print("CH");   //CH
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
     case 0xFFE21D: lcd.print("CH+");  //CH+
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;   
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
     case 0xFF22DD: lcd.print("PREV"); //PREV
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;  
-    case 0xFF02FD: lcd.print("NEXT");  //NEXT 
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break; 
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF02FD: lcd.print("NEXT"); //NEXT
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
     case 0xFFC23D: lcd.print("PLAY"); //PLAY
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;  
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
     case 0xFFE01F: lcd.print("VOL-"); //VOL-
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;  
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
     case 0xFFA857: lcd.print("VOL+"); //VOL+
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;  
-    case 0xFF906F: lcd.print("EQ"); //EQ
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;  
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF906F: lcd.print("EQ");   //EQ
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
     case 0xFF6897: lcd.print("NULL"); //NULL
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;  
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
     case 0xFF9867: lcd.print("100+"); //100+
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;  
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
     case 0xFFB04F: lcd.print("200+"); //200+
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;  
-    case 0xFF30CF: lcd.print("1");  //1 
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break; 
-    case 0xFF18E7: lcd.print("2"); //2 
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;  
-    case 0xFF7A85: lcd.print("3"); //3
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break; 
-    case 0xFF10EF: lcd.print("4");  //4
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;
-    case 0xFF38C7: lcd.print("5");  //5
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break; 
-    case 0xFF5AA5: lcd.print("6"); //6 
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break; 
-    case 0xFF42BD: lcd.print("7"); //7
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break; 
-    case 0xFF4AB5: lcd.print("8"); //8 
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;  
-    case 0xFF52AD: lcd.print("9"); //9
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break; 
-    case 0xFFFFFF: lcd.print("zippp"); //BUTTON HOLD doesnt work due too delay
-                   delay(LCD_SLOW_ANIMATION*3);
-                   break;    
-    default: break; 
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF30CF: lcd.print("1");    //1
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF18E7: lcd.print("2");    //2
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF7A85: lcd.print("3");    //3
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF10EF: lcd.print("4");    //4
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF38C7: lcd.print("5");    //5
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF5AA5: lcd.print("6");    //6
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF42BD: lcd.print("7");    //7
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF4AB5: lcd.print("8");    //8
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFF52AD: lcd.print("9");    //9
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    case 0xFFFFFF: lcd.print("X");    //BUTTON HOLD doesnt work due too delay
+      delay(LCD_SLOW_ANIMATION * 3);
+      break;
+    default: break;
   }
 }
