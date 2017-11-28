@@ -1,43 +1,50 @@
-#include <avr/wdt.h>
-#include <Wire.h>
-#include <boarddefs.h>
-#include <EEPROM.h>
-#include <IRremote.h>
-#include <IRremoteInt.h>
-#include <ir_Lego_PF_BitStreamEncoder.h>
-#include <LiquidCrystal_I2C.h>
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+// libraries
+#include <LiquidCrystal_I2C.h>  // lcd display
+#include <LedControl.h>         // led matrix
+#include <avr/wdt.h>            // watchdog
+#include <EEPROM.h>             // eeprom
+#include <IRremote.h>           // ir
 
+// macros
 #if defined(ARDUINO) && ARDUINO >= 100
 #define printByte(args)  write(args);
 #else
 #define printByte(args)  print(args,BYTE);
 #endif
 
-//display variables
-const uint8_t LCD_DISPLAY_SIZE = 16;
-const uint8_t LCD_ANIMATION_OFFSET = 6;
-const uint8_t LCD_FAST_ANIMATION = 50; //time in miliseconds
-const uint8_t LCD_SLOW_ANIMATION = 200;
-const int     LCD_NO_ANIMATION = 1000;
+// lcd display
+#define LCD_DISPLAY_ROWS      2
+#define LCD_DISPLAY_COLUMNS   16
+#define LCD_ANIMATION_OFFSET  6
+#define LCD_FAST_ANIMATION    50    //time in miliseconds
+#define LCD_SLOW_ANIMATION    200
+#define LCD_NO_ANIMATION      1000
 
 //pin layout
-const uint8_t IR_PIN = 2;
-const uint8_t LED_PIN = A3;
-const uint8_t BUTTON_PIN = 5;
-const uint8_t R_PIN = A0;
-const uint8_t G_PIN = A1;
-const uint8_t B_PIN = A2;
+#define IR_PIN                13
+#define LED_PIN               4
+#define BUTTON_PIN            5
+#define R_PIN                 5
+#define G_PIN                 6
+#define B_PIN                 7
+#define DIN_PIN               12
+#define CLK_PIN               10
+#define CS_PIN                11
 
-//menu screen flag variables
-const uint8_t LCD_WELCOME = 0x00;
-const uint8_t LCD_NEW_GAME = 0x01;
-const uint8_t LCD_PLAYER_SELECT = 0x02;
-const uint8_t LCD_PLAYER_TURN = 0x03;
-const uint8_t LCD_GAME_OVER = 0x04;
-const uint8_t LCD_WINNING = 0x05;
-const uint8_t LCD_IR_TEST = 0x06;
-const uint8_t LCD_GET_HIGHSCORE = 0x07;
+// menu screen flag variables
+#define LCD_WELCOME           0
+#define LCD_NEW_GAME          1
+#define LCD_PLAYER_SELECT     2
+#define LCD_PLAYER_TURN       3
+#define LCD_GAME_OVER         4
+#define LCD_WINNING           5
+#define LCD_IR_TEST           6
+#define LCD_GET_HIGHSCORE     7
+
+// led matrix
+#define LC_DIGIT_SHOW         400
+#define LC_DIGIT_HIDE         200
+#define LC_BRIGHTNESS         8     // 0~15
 
 //custom characters
 uint8_t block[8] = {0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F};
@@ -52,6 +59,111 @@ uint8_t heart[8] = {0x0, 0xa, 0x1f, 0x1f, 0xe, 0x4, 0x0};
 uint8_t skull[8] = {0x0E, 0x1F, 0x15, 0x1F, 0x1B, 0x0E, 0x0E, 0x00};
 uint8_t crown[8] = {0x04, 0x0E, 0x04, 0x15, 0x1F, 0x1F, 0x1F, 0x00};
 uint8_t star[8] = {0x04, 0x15, 0x0E, 0x0E, 0x1F, 0x0E, 0x0E, 0x15};
+
+// digits
+const byte DIGITS[][8] = {
+{
+  B00111000,
+  B01000100,
+  B01000100,
+  B01000100,
+  B01000100,
+  B01000100,
+  B01000100,
+  B00111000
+},{
+  B00010000,
+  B00110000,
+  B00010000,
+  B00010000,
+  B00010000,
+  B00010000,
+  B00010000,
+  B00111000
+},{
+  B00111000,
+  B01000100,
+  B00000100,
+  B00000100,
+  B00001000,
+  B00010000,
+  B00100000,
+  B01111100
+},{
+  B00111000,
+  B01000100,
+  B00000100,
+  B00011000,
+  B00000100,
+  B00000100,
+  B01000100,
+  B00111000
+},{
+  B00000100,
+  B00001100,
+  B00010100,
+  B00100100,
+  B01000100,
+  B01111100,
+  B00000100,
+  B00000100
+},{
+  B01111100,
+  B01000000,
+  B01000000,
+  B01111000,
+  B00000100,
+  B00000100,
+  B01000100,
+  B00111000
+},{
+  B00111000,
+  B01000100,
+  B01000000,
+  B01111000,
+  B01000100,
+  B01000100,
+  B01000100,
+  B00111000
+},{
+  B01111100,
+  B00000100,
+  B00000100,
+  B00001000,
+  B00010000,
+  B00100000,
+  B00100000,
+  B00100000
+},{
+  B00111000,
+  B01000100,
+  B01000100,
+  B00111000,
+  B01000100,
+  B01000100,
+  B01000100,
+  B00111000
+},{
+  B00111000,
+  B01000100,
+  B01000100,
+  B01000100,
+  B00111100,
+  B00000100,
+  B01000100,
+  B00111000
+}};
+
+const byte CLEAR_LED_MATRIX[] = {
+  B00000000,
+  B00000000,
+  B00000000,
+  B00000000,
+  B00000000,
+  B00000000,
+  B00000000,
+  B00000000
+};
 
 //loop variables
 int i = 0;
@@ -87,6 +199,12 @@ IRrecv irrecv(IR_PIN);
 decode_results results;
 int refresh = 0;
 
+//LedMatrix
+LedControl lc = LedControl(DIN_PIN, CLK_PIN, CS_PIN, 1); // Pins: DIN,CLK,CS, # of Display connected
+
+//LcdDisplay
+LiquidCrystal_I2C lcd(0x27, LCD_DISPLAY_COLUMNS, LCD_DISPLAY_ROWS);
+
 //global timer variables
 uint8_t timer1_toggle = 0;
 long timer1_cnt = 0;
@@ -96,6 +214,14 @@ long timer1_old_cnt = 0;
 unsigned int address = 0; //adress 0 = version, 1 = flagscore, 2 = higscore, 3 = playermode, 4 = maxrounds
 byte rom_version = B00000; //Version 0
 byte value;
+
+void setLedMatrix(const uint8_t image[])
+{
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    lc.setRow(0, i, image[i]);
+  }
+}
 
 void setup() {
   pinMode(BUTTON_PIN, INPUT);   //is not necessary
@@ -114,6 +240,9 @@ void setup() {
 
   wdt_disable();       //disable the watchdog
   wdt_enable(WDTO_8S); //enable watchdog = 20s
+  lc.shutdown(0, false); // turn off power saving, enables display
+  lc.setIntensity(0, LC_BRIGHTNESS); // sets brightness (0~15 possible values)
+  lc.clearDisplay(0);// clear screen
 }
 
 
@@ -290,7 +419,7 @@ void lcd_welcome()
 
   while (k <= 4)
   {
-    while (i <= LCD_DISPLAY_SIZE + LCD_ANIMATION_OFFSET)
+    while (i <= LCD_DISPLAY_COLUMNS + LCD_ANIMATION_OFFSET)
     {
       lcd.setCursor(i, 0);
       lcd.printByte(0);
@@ -355,8 +484,8 @@ void lcd_welcome()
 void lcd_new_game()
 {
   lcd.createChar(0, block);
-  i = LCD_DISPLAY_SIZE + LCD_ANIMATION_OFFSET;
-  j = LCD_DISPLAY_SIZE;
+  i = LCD_DISPLAY_COLUMNS + LCD_ANIMATION_OFFSET;
+  j = LCD_DISPLAY_COLUMNS;
   k = 0;
 
   while (i >= -LCD_ANIMATION_OFFSET)    //prints moving Blocks
@@ -368,7 +497,7 @@ void lcd_new_game()
 
     i--;
 
-    if (i <= LCD_DISPLAY_SIZE - LCD_ANIMATION_OFFSET)
+    if (i <= LCD_DISPLAY_COLUMNS - LCD_ANIMATION_OFFSET)
     {
       lcd.setCursor(j, 0);
       lcd.print(" ");
@@ -541,6 +670,12 @@ void game()
   {
     lcd.setCursor(4, 0);
     lcd.print(simon_said[x]);
+    
+    setLedMatrix(CLEAR_LED_MATRIX);
+    delay(LC_DIGIT_HIDE);
+    setLedMatrix(DIGITS[simon_said[x]]);
+    delay(LC_DIGIT_SHOW);
+    
     delay(LCD_NO_ANIMATION);   //speedvalue / number of chars +- some modifier maybe
   }
   lcd.setCursor(0, 1);
@@ -602,7 +737,7 @@ void lcd_game_over()
     i = 0;
     j = 0;
 
-    while (i <= LCD_DISPLAY_SIZE + LCD_ANIMATION_OFFSET)
+    while (i <= LCD_DISPLAY_COLUMNS + LCD_ANIMATION_OFFSET)
     {
       lcd.setCursor(i, 0);    //prints moving skulls
       lcd.write(0);
@@ -623,7 +758,7 @@ void lcd_game_over()
       lcd.write(0);
       i--;
 
-      if (i <= LCD_DISPLAY_SIZE - LCD_ANIMATION_OFFSET + 1)
+      if (i <= LCD_DISPLAY_COLUMNS - LCD_ANIMATION_OFFSET + 1)
       {
         lcd.setCursor(j, 1);
         lcd.print(" ");
@@ -761,9 +896,9 @@ void lcd_refresh()
     case LCD_WINNING:
       lcd_winning();
       break;
-    case LCD_IR_TEST:
-      ir_test();
-      break;
+    //case LCD_IR_TEST:       part of unit test
+    //  ir_test();
+    //  break;
     case LCD_GET_HIGHSCORE:
       get_highscore();
       break;
@@ -787,210 +922,3 @@ void loop()
     lcd_status = LCD_NEW_GAME;
   }
 }
-
-// -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS -- TESTFUNCTIONS --
-
-void rom_reset()
-{
-  for (int i = 0 ; i < EEPROM.length() ; i++)  // EEPROM.length() determine the eeprom size dynamically, to increase compatabilty
-  {
-    EEPROM.write(i, 0);
-  }
-  lcd.print("ROM RESET DONE");
-  delay(1900);
-}
-
-void ledtest()                   // Lets the single LED-Blink
-{
-  digitalWrite(LED_PIN, HIGH);   // sets the LED on
-  delay(500);                    // waits for a second
-  digitalWrite(LED_PIN, LOW);    // sets the LED off
-  delay(500);                    // waits for a second
-}
-
-
-void ir_test()    //function is for IR_Control testing
-{
-  if (irrecv.decode(&results))
-  {
-    Serial.println(results.value, HEX); //send HexCode of pressed Button to SerialPort
-    buttontest();
-    irrecv.resume();
-  }
-}
-
-void buttontest()  //displays the pressed Button on IR-Control on LCD-Screen
-{
-  switch (results.value)
-  {
-    case 0xFFA25D: lcd.print("CH-");  //CH-
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF629D: lcd.print("CH");   //CH
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFFE21D: lcd.print("CH+");  //CH+
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF22DD: lcd.print("PREV"); //PREV
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF02FD: lcd.print("NEXT"); //NEXT
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFFC23D: lcd.print("PLAY"); //PLAY
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFFE01F: lcd.print("VOL-"); //VOL-
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFFA857: lcd.print("VOL+"); //VOL+
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF906F: lcd.print("EQ");   //EQ
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF6897: lcd.print("NULL"); //NULL
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF9867: lcd.print("100+"); //100+
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFFB04F: lcd.print("200+"); //200+
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF30CF: lcd.print("1");    //1
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF18E7: lcd.print("2");    //2
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF7A85: lcd.print("3");    //3
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF10EF: lcd.print("4");    //4
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF38C7: lcd.print("5");    //5
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF5AA5: lcd.print("6");    //6
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF42BD: lcd.print("7");    //7
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF4AB5: lcd.print("8");    //8
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFF52AD: lcd.print("9");    //9
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    case 0xFFFFFF: lcd.print("X");    //BUTTON HOLD doesnt work due too delay
-      delay(LCD_SLOW_ANIMATION * 3);
-      break;
-    default: break;
-  }
-}
-
-//  Matrix Test Part
-#define ROW_1 10
-#define ROW_2 7
-#define ROW_3 12
-#define ROW_4 6
-#define ROW_5 2
-#define ROW_6 13
-#define ROW_7 A1
-#define ROW_8 5
-
-#define COL_1 A0
-#define COL_2 8
-#define COL_3 9
-#define COL_4 4
-#define COL_5 11
-#define COL_6 3
-#define COL_7 A2
-#define COL_8 A3
-
-const byte rows[] = { ROW_1, ROW_2, ROW_3, ROW_4, ROW_5, ROW_6, ROW_7, ROW_8 };
-
-// The display buffer
-byte linksoben[] = {B10000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000};
-byte rechtsoben[] = {B00000001, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000};
-byte linksunten[] = {B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B10000000};
-byte rechtsunten[] = {B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000001};
-byte alles[] = {B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111};
-
-float timeCount = 0;
-
-void setup() {
-  // Open serial port
-  Serial.begin(9600)
-
-  for (byte i = 2; i <= 13; i++) //set needed pins to Output
-  {
-    pinMode(i, OUTPUT);
-  }
-  pinMode(A0, OUTPUT);
-  pinMode(A1, OUTPUT);
-  pinMode(A2, OUTPUT);
-  pinMode(A3, OUTPUT);
-}
-
-void matrix_test() {
-  // This could be rewritten to not use a delay, which would make it appear brighter
-  delay(5);
-  timeCount += 1;
-  if (timeCount <  70) {
-    drawScreen(linksoben);
-  }
-  else if (timeCount <  150)
-  {
-    drawScreen(rechtsoben);
-  }
-  else if (timeCount <  270)
-  {
-    drawScreen(linksunten);
-  }
-  else if (timeCount <  350)
-  {
-    drawScreen(rechtsunten);
-  }
-  else if (timeCount <  420)
-  {
-    drawScreen(alles);
-  }
-  else if (timeCount <  720)
-  {
-    timeCount = 0;
-  }
-
-
-}
-
-void  drawScreen(byte buffer2[]) 
-{
-  // Turn on each row in series
-  for (byte i = 0; i < 8; i++) {
-    setColumns(buffer2[i]); // Set columns for this specific row
-
-    digitalWrite(rows[i], HIGH);
-    delay(1);       // if delay = 50 or 100 --> Multiplexeffect
-    digitalWrite(rows[i], LOW);
-
-  }
-}
-
-
-void setColumns(byte b) {
-  digitalWrite(COL_1, (~b >> 0) & 0x01); // Get the 1st bit: 10000000
-  digitalWrite(COL_2, (~b >> 1) & 0x01); // Get the 2nd bit: 01000000
-  digitalWrite(COL_3, (~b >> 2) & 0x01); // Get the 3rd bit: 00100000
-  digitalWrite(COL_4, (~b >> 3) & 0x01); // Get the 4th bit: 00010000
-  digitalWrite(COL_5, (~b >> 4) & 0x01); // Get the 5th bit: 00001000
-  digitalWrite(COL_6, (~b >> 5) & 0x01); // Get the 6th bit: 00000100
-  digitalWrite(COL_7, (~b >> 6) & 0x01); // Get the 7th bit: 00000010
-  digitalWrite(COL_8, (~b >> 7) & 0x01); // Get the 8th bit: 00000001
-
-}
-
