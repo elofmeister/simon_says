@@ -706,7 +706,10 @@ void player_input()
         input_count++;
         player_life_turns[turn_player][2]++;    //correct entries counted for highscore
 
-        if (player_number > 1 && player_alive == 1) lcd_winning();
+        if (player_number > 1 && player_alive == 1)
+        {
+          lcd_winning();
+        }
       }
       else
       {
@@ -717,7 +720,10 @@ void player_input()
         delay(LCD_SLOW_ANIMATION);
         player_life_turns[turn_player][1]--;  //wrong entry = lesser life
         input_count = number_count;           //wrong entry = turn over
-        if (player_life_turns[turn_player][1] == 0) lcd_game_over();
+        if (player_life_turns[turn_player][1] == 0 || player_alive == 0)
+        {
+          lcd_game_over();    
+        }
       }
       lcd.clear();
       irrecv.resume();                        // ready to receive the next value from IR-Control
