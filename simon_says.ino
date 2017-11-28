@@ -189,7 +189,7 @@ unsigned int player_life_turns[MAX_PLAYERS][STARTING_LIFES];   //  life = [x][1]
 unsigned int simon_said[50];                                   //keeps track of the specific number-sequence
 uint8_t player_number;
 uint8_t player_alive;
-int turn_player = 0;   // turn player
+uint8_t turn_player = 0;   // turn player
 uint8_t global_turns = 0;  //global turns
 uint8_t number_count = 0;  //counting said numbers
 uint8_t input = 0;
@@ -680,6 +680,7 @@ void game()
   }
   lcd.setCursor(0, 1);
   lcd.print("go! go! go!");
+  lc.clearDisplay(0);
   delay(LCD_NO_ANIMATION);
 }
 
